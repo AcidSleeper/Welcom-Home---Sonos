@@ -1,0 +1,105 @@
+﻿#Test av en nya välkomstmeddelanden via sonsos
+#Använder packages
+
+automation:
+  - alias: 'Välkommen Hem'
+    trigger:
+      platform: state
+      entity_id: sensor.ytterdorr_status
+      to: 'Öppen'
+    condition:
+      condition: and
+      conditions:
+        - condition: time
+          after: '09:00:00'
+          before: '18:00:00'
+        - condition: or
+          conditions:
+          - condition: state
+            entity_id: sensor.niclas_status
+            state: 'Kom nyss hem'
+          - condition: state
+            entity_id: sensor.sara_status
+            state: 'Kom nyss hem'
+    action:
+      - service: script.welcome_home
+        data_template:
+          speech_message: >
+            {% if is_state('sensor.niclas_status', 'Kom nyss hem') %}
+              {{ [
+              "Välkommen hem Niclas" ,
+              "Kungen Niclas är hemma"
+              ] | random }}
+            {% else %}
+              {{ [
+              "Välkommen hem Sara" ,
+              "Drottningen är hemma. Välkommen hem Sara" ,
+              "Husets sötnos Sara är hemma"
+              ] | random }}
+            {% endif %}
+          
+      - service: automation.turn_off
+        entity_id: automation.valkommen_hem
+      # Wait some time and turn the automation back on
+      - delay:
+          minutes: 10
+      - service: automation.turn_on
+        entity_id: automation.valkommen_hem
+           
+
+script:
+  welcome_home:
+    alias: "Välkomst meddelande"
+    sequence:
+      - service_template: script.sonos_{{'playing' if states.media_player.kok.state == 'playing' else 'notplaying'}}
+        data_template:
+          sonos_entity: media_player.kok
+          volume: 0.60
+          message: "{{ speech_message }}"
+      
+  sonos_playing:
+    alias: "Sonos Playing"
+    sequence:
+      - service: media_player.sonos_snapshot
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+      - service: media_player.sonos_unjoin
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+      - service: media_player.volume_set
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+          volume_level: "{{ volume }}"
+      - delay: '00:00:05'
+      - service: tts.google_say
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+          message: "{{ message }}"
+      - delay: '00:00:03'
+      - service: media_player.sonos_restore
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+          
+  sonos_notplaying:
+    alias: "Sonos Not PLaying"
+    sequence:
+      - service: media_player.volume_set
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+          volume_level: "{{ volume }}"
+      - delay: '00:00:05'
+      - service: tts.google_say
+        data_template:
+          entity_id: "{{ sonos_entity }}"
+          message: "{{ message }}"
+      - delay: '00:00:03'
+      - service: media_player.volume_set
+        data_template:
+          entity_id: media_player.kok
+          volume_level: 0.35
+      - service: media_player.select_source
+        data_template:
+          entity_id: media_player.kok
+          source: "{{ 'Raubtier' if states.sensor.niclas_status.state == 'Kom nyss hem' else 'P3 Star' }}"
+          #Utveckla med flera personer.
+          # "{{ 'Raubtier' if states.sensor.niclas_status.state == 'Kom nyss hem' else 'P3 Star' if states.sensor.sara_status.state == 'Kom nyss hem' else 'Vilken låtlist man nu vill ha}}"
