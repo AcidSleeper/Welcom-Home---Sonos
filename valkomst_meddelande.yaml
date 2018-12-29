@@ -36,15 +36,6 @@ automation:
               "Husets sötnos Sara är hemma"
               ] | random }}
             {% endif %}
-          
-      - service: automation.turn_off
-        entity_id: automation.valkommen_hem
-      # Wait some time and turn the automation back on
-      - delay:
-          minutes: 10
-      - service: automation.turn_on
-        entity_id: automation.valkommen_hem
-           
 
 script:
   welcome_home:
